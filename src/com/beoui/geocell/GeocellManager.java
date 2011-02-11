@@ -14,6 +14,8 @@ import javax.jdo.Query;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.Validate;
+import org.mortbay.log.Log;
+
 
 import com.beoui.geocell.LocationComparableTuple;
 import com.beoui.geocell.BoundingBox;
@@ -23,6 +25,7 @@ import com.beoui.geocell.GeocellQuery;
 import com.beoui.geocell.LocationCapable;
 import com.beoui.geocell.Point;
 import com.beoui.geocell.Tuple;
+import com.test.cc1.Cc1serverServlet;
 
 /**
 #
@@ -102,7 +105,7 @@ import com.beoui.geocell.Tuple;
  */
 
 public class GeocellManager {
-
+	private static final Logger log = Logger.getLogger(Cc1serverServlet.class.getName());
     // The maximum *practical* geocell resolution.
     public static final int MAX_GEOCELL_RESOLUTION = 13;
 
@@ -229,7 +232,6 @@ public class GeocellManager {
 
         Validate.isTrue(maxGeocellResolution < MAX_GEOCELL_RESOLUTION + 1,
                 "Invalid max resolution parameter. Must be inferior to ", MAX_GEOCELL_RESOLUTION);
-
         // The current search geocell containing the lat,lon.
         String curContainingGeocell = GeocellUtils.compute(center, maxGeocellResolution);
 
@@ -261,7 +263,7 @@ public class GeocellManager {
             if(maxDistance > 0 && closestPossibleNextResultDist > maxDistance) {
                 break;
             }
-
+            log.info("curgeocells loopsize is " + String.valueOf(curGeocells.size()));
             Set<String> curTempUnique = new HashSet<String>(curGeocells);
             curTempUnique.removeAll(searchedCells);
             List<String> curGeocellsUnique = new ArrayList<String>(curTempUnique);
@@ -275,17 +277,20 @@ public class GeocellManager {
             } else {
                 query.declareParameters(baseQuery.getDeclaredParameters() + ", String geocellsP");
             }
-
             List<T> newResultEntities;
             if(baseQuery.getParameters() == null || baseQuery.getParameters().isEmpty()) {
                 newResultEntities =(List<T>) query.execute(curGeocellsUnique);
             } else {
+                log.info("proximitysearch!2");
                 List<Object> parameters = new ArrayList<Object>(baseQuery.getParameters());
+                log.info("proximitysearch!3 " + String.valueOf(parameters.size()));
                 parameters.add(curGeocellsUnique);
+                log.info("proximitysearch!4");
                 newResultEntities = (List<T>) query.executeWithArray(parameters.toArray());
+                log.info("proximitysearch!5" + String.valueOf(newResultEntities.size()));
             }
 
-            logger.log(Level.FINE, "fetch complete for: " + StringUtils.join(curGeocellsUnique, ", "));
+            log.info("fetch complete for: " + StringUtils.join(curGeocellsUnique, ", "));
 
             searchedCells.addAll(curGeocells);
 

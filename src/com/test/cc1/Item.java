@@ -9,14 +9,13 @@ import javax.jdo.annotations.PrimaryKey;
 
 import com.beoui.geocell.LocationCapable;
 import com.beoui.geocell.Point;
-import com.google.appengine.api.datastore.Key;
 
 @PersistenceCapable
 public class Item implements LocationCapable {
     
 	@PrimaryKey
     @Persistent(valueStrategy = IdGeneratorStrategy.IDENTITY)
-    private Key id;
+    private Long id;//Key id;
 
     @Persistent
     private double latitude;
@@ -27,11 +26,11 @@ public class Item implements LocationCapable {
     @Persistent
     private List<String> geocells;
 
-    public Key getId() {
+    public long getId() {
         return id;
     }
 
-    public void setId(Key id) {
+    public void setId(long id) {
         this.id = id;
     }
 
@@ -105,7 +104,8 @@ public class Item implements LocationCapable {
     	this.username = username;
     }
 
-	public String getKeyString() {
-		return null;
-	}
+    public String getKeyString() {
+        return Long.valueOf(id).toString();
+    }
+
 }
