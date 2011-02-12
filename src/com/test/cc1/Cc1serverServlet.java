@@ -49,6 +49,8 @@ public class Cc1serverServlet extends HttpServlet {
     	Item e = new Item(); //this will either be created or retrieved
     	PersistenceManager pm = PMF.get().getPersistenceManager();
     	try { //the following try block works only on the current client's item
+    		javax.jdo.Transaction tx = pm.currentTransaction();
+	        tx.begin();
     		if (inkey != 0) { //the user's Item reference exists, get it from the db
     			try {
     			e = pm.getObjectById(Item.class, inkey);
@@ -85,6 +87,7 @@ public class Cc1serverServlet extends HttpServlet {
 			
 			//write to the client's item
 			pm.makePersistent(e);
+	        tx.commit();
 			//if client is a new user, set the key
 			if (inkey == 0) {
 				newkey = e.getId(); //used to be key
@@ -108,13 +111,13 @@ public class Cc1serverServlet extends HttpServlet {
 		        	int lenRet = itemReturns.size();
 		        	for (int i=0; i < lenRet; i++) {
 		        		//TODO! Radius checking (need the actual proximity of each item)
-        		        javax.jdo.Transaction tx = pm.currentTransaction();
-        		        tx.begin();
+        		        javax.jdo.Transaction tx2 = pm.currentTransaction();
+        		        tx2.begin();
         		        Item tempReturn = itemReturns.get(i);
         		        if (tempReturn.getId() != inkey) //we don't want to add the message to the one who sent it
         		        	tempReturn.addtoMsgQ(username + ": " + content);
             			pm.makePersistent(tempReturn);
-        		        tx.commit();
+        		        tx2.commit();
         		        log.info("RETURNCHECK! " + tempReturn.getUsername());
 		        	}
 		        }
