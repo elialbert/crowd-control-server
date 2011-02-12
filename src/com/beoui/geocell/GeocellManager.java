@@ -24,6 +24,7 @@ import com.beoui.geocell.LocationCapable;
 import com.beoui.geocell.Point;
 import com.beoui.geocell.Tuple;
 import com.test.cc1.Cc1serverServlet;
+import com.test.cc1.Item;
 
 /**
 #
@@ -232,8 +233,8 @@ public class GeocellManager {
                 "Invalid max resolution parameter. Must be inferior to ", MAX_GEOCELL_RESOLUTION);
         // The current search geocell containing the lat,lon.
         String curContainingGeocell = GeocellUtils.compute(center, maxGeocellResolution);
-        log.info("curcontaininggeocell: " + curContainingGeocell);
-        logger.log(Level.INFO, "herenowwithlogger");
+        //log.info("curcontaininggeocell: " + curContainingGeocell);
+        //logger.log(Level.INFO, "herenowwithlogger");
         // Set of already searched cells
         Set<String> searchedCells = new HashSet<String>();
 
@@ -262,14 +263,14 @@ public class GeocellManager {
             if(maxDistance > 0 && closestPossibleNextResultDist > maxDistance) {
                 break;
             }
-            log.info("curgeocells loopsize is " + String.valueOf(curGeocells.size()));
+            //log.info("curgeocells loopsize is " + String.valueOf(curGeocells.size()));
             Set<String> curTempUnique = new HashSet<String>(curGeocells);
             curTempUnique.removeAll(searchedCells);
             List<String> curGeocellsUnique = new ArrayList<String>(curTempUnique);
 
             // Run query on the next set of geocells.
             String queryStart = baseQuery.getBaseQuery() == null || baseQuery.getBaseQuery().trim().length() == 0 ? " " : baseQuery.getBaseQuery() + " && ";
-            log.info("querystart: " + queryStart);
+            //log.info("querystart: " + queryStart);
             Query query = pm.newQuery(entityClass, queryStart + "geocells.contains(geocellsP)");
 
             if(baseQuery.getDeclaredParameters() == null || baseQuery.getDeclaredParameters().trim().length() == 0) {
@@ -281,13 +282,9 @@ public class GeocellManager {
             if(baseQuery.getParameters() == null || baseQuery.getParameters().isEmpty()) {
                 newResultEntities =(List<T>) query.execute(curGeocellsUnique);
             } else {
-                log.info("proximitysearch!2");
                 List<Object> parameters = new ArrayList<Object>(baseQuery.getParameters());
-                log.info("proximitysearch!3 " + String.valueOf(parameters.size()));
                 parameters.add(curGeocellsUnique);
-                log.info("proximitysearch!4" + String.valueOf(parameters.size()));
                 newResultEntities = (List<T>) query.executeWithArray(parameters.toArray());
-                log.info("proximitysearch!5" + String.valueOf(newResultEntities.size()));
             }
 
             log.info("fetch complete for: " + StringUtils.join(curGeocellsUnique, ", "));
@@ -337,7 +334,6 @@ public class GeocellManager {
                     }
                 }
                 if(curGeocells.size() == 0) {
-                	log.info("curgeocells0");
                     break;  // Done with search, we've searched everywhere.
                 }
             } else if(curGeocells.size() == 1) {
@@ -375,11 +371,11 @@ public class GeocellManager {
 
             // We don't have enough items yet, keep searching.
             if(results.size() < maxResults) {
-                logger.log(Level.FINE,  results.size()+" results found but want "+maxResults+" results, continuing search.");
+                logger.log(Level.INFO,  results.size()+" results found but want "+maxResults+" results, continuing search.");
                 continue;
             }
 
-            logger.log(Level.FINE, results.size()+" results found.");
+            logger.log(Level.INFO, results.size()+" results found.");
 
             // If the currently max_results'th closest item is closer than any
             // of the next test geocells, we're done searching.
@@ -394,7 +390,14 @@ public class GeocellManager {
         List<T> result = new ArrayList<T>();
         for(Tuple<T, Double> entry : results.subList(0, Math.min(maxResults, results.size()))) {
             if(maxDistance == 0 || entry.getSecond() < maxDistance) {
-                result.add(entry.getFirst());
+                //Item curNewTempRes = ((Item) entry.getFirst());
+            	log.info("RESULT CHECK: " + ((Item) entry.getFirst()).getLatitude());
+            	//javax.jdo.Transaction tx = pm.currentTransaction();
+		        //tx.begin();
+                //curNewTempRes.setContent("whatwhat?");
+                //pm.makePersistent(curNewTempRes);
+		        //tx.commit();
+            	result.add(entry.getFirst());
             }
         }
         logger.log(Level.INFO, "Proximity query looked in "+ searchedCells.size() +" geocells and found "+result.size()+" results.");

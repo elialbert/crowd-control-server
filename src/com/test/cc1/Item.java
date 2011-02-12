@@ -86,6 +86,9 @@ public class Item implements LocationCapable {
 
 	@Persistent
     private String username;
+	
+	@Persistent
+	private Long radius;
     
     public Item() {}
     
@@ -110,5 +113,13 @@ public class Item implements LocationCapable {
     public String getKeyString() {
         return Long.valueOf(id).toString();
     }
+
+	public void setRadius(Long radius) {
+		this.radius = radius;
+	}
+
+	public Long getRadius() {
+		return radius;
+	}
 
 }

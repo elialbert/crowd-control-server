@@ -11,7 +11,6 @@ import javax.jdo.Query;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.transaction.Transaction;
 
 import com.beoui.geocell.BoundingBox;
 import com.beoui.geocell.GeocellManager;
@@ -29,19 +28,23 @@ public class Cc1serverServlet extends HttpServlet {
         String msgQtemp = ""; //this will be from the server to string "content" defined above
         List<String> msgQreturn = null; //this will be from the item in the datastore to the server
         long newkey = 0;
+        long radius = 0;
         resp.setContentType("text/plain");
         
         Long inkey = Long.valueOf(req.getParameter("key"));
         String username = req.getParameter("username");
     	Double lat = Double.valueOf(req.getParameter("latitude"));
-    	log.info(String.valueOf(lat) + " " + username + "key: " + inkey);
+    	log.info(String.valueOf(lat) + " " + username + " key: " + inkey);
     	Double lon = Double.valueOf(req.getParameter("longitude"));
     	Point p = new Point(lat, lon);
-    	
+    	    	
         List<String> cells = GeocellManager.generateGeoCell(p);
 
     	if (req.getParameterMap().containsKey("content")) //check if the post has content
             content = req.getParameter("content");
+    	if (req.getParameterMap().containsKey("radius"))
+    		radius = Long.valueOf(req.getParameter("Radius"));
+
     	
     	Item e = new Item(); //this will either be created or retrieved
     	PersistenceManager pm = PMF.get().getPersistenceManager();
@@ -58,6 +61,10 @@ public class Cc1serverServlet extends HttpServlet {
 			e.setLatitude(lat);
 			e.setLongitude(lon);
 			e.setGeocells(cells);
+			if (radius != 0) {
+				e.setRadius(radius);
+				log.info("setting radius to " + radius);
+			}
 			
 			//give any waiting messages back to the client
 			msgQreturn = e.getMsgQ();
@@ -81,6 +88,7 @@ public class Cc1serverServlet extends HttpServlet {
 			//if client is a new user, set the key
 			if (inkey == 0) {
 				newkey = e.getId(); //used to be key
+				inkey = newkey;
 		    	log.info("new key is! " + newkey);
 			}
 		
@@ -92,27 +100,22 @@ public class Cc1serverServlet extends HttpServlet {
 		        
 		        List<Item> itemReturns = null;
 		        try {
-		            itemReturns = GeocellManager.proximityFetch(center, 40, 0, Item.class, baseQuery, pm);
+		            itemReturns = GeocellManager.proximityFetch(center, 100, 0, Item.class, baseQuery, pm);
 		        } catch (Exception e2) {
 		        	log.warning(e2.getMessage());
 		        }
 		        if (itemReturns != null) {
 		        	int lenRet = itemReturns.size();
 		        	for (int i=0; i < lenRet; i++) {
-	        			try {
-	        		        javax.jdo.Transaction tx = pm.currentTransaction();
-	        		        tx.begin();
-	        		        Item tempReturn = itemReturns.get(i);
-	            			e = pm.getObjectById(Item.class, tempReturn.getId());
-	            			e.addtoMsgQ(content);
-	            			pm.makePersistent(e);
-	        		        tx.commit();
-	        		        log.info("" + e.getLatitude());
-	        		    } finally {
-	        		        //if (tx.isActive()) {
-	        		         //   tx.rollback();
-	        		        //}
-	        		    }
+		        		//TODO! Radius checking (need the actual proximity of each item)
+        		        javax.jdo.Transaction tx = pm.currentTransaction();
+        		        tx.begin();
+        		        Item tempReturn = itemReturns.get(i);
+        		        if (tempReturn.getId() != inkey) //we don't want to add the message to the one who sent it
+        		        	tempReturn.addtoMsgQ(username + ": " + content);
+            			pm.makePersistent(tempReturn);
+        		        tx.commit();
+        		        log.info("RETURNCHECK! " + tempReturn.getUsername());
 		        	}
 		        }
 			}
