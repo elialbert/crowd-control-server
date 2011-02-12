@@ -11,8 +11,7 @@ import javax.jdo.Query;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import org.mortbay.log.Log;
+import javax.transaction.Transaction;
 
 import com.beoui.geocell.BoundingBox;
 import com.beoui.geocell.GeocellManager;
@@ -25,7 +24,8 @@ public class Cc1serverServlet extends HttpServlet {
 	@Override
 	public void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws IOException {
-        String content = ""; //this will be sent back to the client, but first it is used to hold any incoming message from the client
+        String content = ""; //used to hold any incoming message from the client
+        String returnContent = ""; //this will be sent back to the client
         String msgQtemp = ""; //this will be from the server to string "content" defined above
         List<String> msgQreturn = null; //this will be from the item in the datastore to the server
         long newkey = 0;
@@ -45,19 +45,11 @@ public class Cc1serverServlet extends HttpServlet {
     	
     	Item e = new Item(); //this will either be created or retrieved
     	PersistenceManager pm = PMF.get().getPersistenceManager();
-    	try {
-    		//Key k = KeyFactory.createKey(Item.class.getSimpleName(), username);
-    		//long klong = k.getId();
-    		//log.info("fuckin key is " + String.valueOf(klong));
-    		//klong += 1;
-    		if (inkey != 0) {
+    	try { //the following try block works only on the current client's item
+    		if (inkey != 0) { //the user's Item reference exists, get it from the db
     			try {
     			e = pm.getObjectById(Item.class, inkey);
-    			}
-    			catch (JDOObjectNotFoundException err)
-    			{
-    				log.warning("object not found error with key " + inkey);
-    			}
+    			}catch (JDOObjectNotFoundException err){log.warning("object not found error with key " + inkey);}
     		}
     		else { //throws any time we haven't added said user yet:
     			e = new Item(username, content);
@@ -66,40 +58,9 @@ public class Cc1serverServlet extends HttpServlet {
 			e.setLatitude(lat);
 			e.setLongitude(lon);
 			e.setGeocells(cells);
+			
+			//give any waiting messages back to the client
 			msgQreturn = e.getMsgQ();
-			if ((!content.equals("NONE")) && (!content.equals(""))) {
-				//todo: query on nearby peeps
-				//for all returned ids
-				//get item, add content to msgQ
-				
-				//testing:
-				testHowToQueryOnABoundingBox(pm);
-				///testing
-				
-				Point center = new Point(lat, lon);
-		        List<Object> itemParams = new ArrayList<Object>();
-		        itemParams.add("John");
-		        GeocellQuery baseQuery = new GeocellQuery("lastName == lastNameParam", "String lastNameParam", itemParams);
-
-		        List<Item> itemReturns = null;
-		        try {
-		            itemReturns = GeocellManager.proximityFetch(center, 40, 0, Item.class, baseQuery, pm);
-		        } catch (Exception e2) {
-		        }
-		        if (itemReturns != null) {
-		        	int lenRet = itemReturns.size();
-		        	for (int i=0; i < lenRet; i++) {
-		        		itemReturns.get(i).addtoMsgQ(content);
-		        	}
-		        }
-				 /*
-				//testing here:
-				Key testkey = KeyFactory.createKey(Item.class.getSimpleName(), "Eli3");
-				Item e2 = pm.getObjectById(Item.class, testkey);
-				e2.addtoMsgQ(content);
-				// end testing
-				*/
-			}
 			if ((msgQreturn != null) && (!msgQreturn.isEmpty())) { //if there are message waiting in the queue 
 				int lenQ = msgQreturn.size();
 				for (int i=0; i < lenQ; i++) { //iterate through and make a big string of them - is there a faster/better implementation here?
@@ -109,40 +70,75 @@ public class Cc1serverServlet extends HttpServlet {
 				log.info("msgq: " + msgQtemp);
 				msgQreturn.clear(); //hopefully we've gotten all the messages out in order
 				e.setMsgQ(msgQreturn); //set the clear queue back to the item
-				content = msgQtemp; //wanted this line to be below, move it later
+				returnContent = msgQtemp; //wanted this line to be below, move it later?
 			}
 			else {
-				content = "";
+				returnContent = "";
 			}
-	        // Show in the log what cells are going to be saved
-	        log.info("Geocells to be saved for Point("+lat+","+lon+") are: "+cells);
+			
+			//write to the client's item
 			pm.makePersistent(e);
+			//if client is a new user, set the key
 			if (inkey == 0) {
 				newkey = e.getId(); //used to be key
-    	    	e.setId(newkey);
-    	    	log.info("new key is! " + newkey);
+		    	log.info("new key is! " + newkey);
 			}
-    	} finally {
-    		pm.close();
+		
+			if ((!content.equals("NONE")) && (!content.equals(""))) { //if the client is also sending a message, add it to nearby msgqueues
+				Point center = new Point(lat, lon);
+		        List<Object> itemParams = new ArrayList<Object>();
+		        itemParams.add(1);
+		        GeocellQuery baseQuery = new GeocellQuery("always == alwaysParam", "int alwaysParam", itemParams);
+		        
+		        List<Item> itemReturns = null;
+		        try {
+		            itemReturns = GeocellManager.proximityFetch(center, 40, 0, Item.class, baseQuery, pm);
+		        } catch (Exception e2) {
+		        	log.warning(e2.getMessage());
+		        }
+		        if (itemReturns != null) {
+		        	int lenRet = itemReturns.size();
+		        	for (int i=0; i < lenRet; i++) {
+	        			try {
+	        		        javax.jdo.Transaction tx = pm.currentTransaction();
+	        		        tx.begin();
+	        		        Item tempReturn = itemReturns.get(i);
+	            			e = pm.getObjectById(Item.class, tempReturn.getId());
+	            			e.addtoMsgQ(content);
+	            			pm.makePersistent(e);
+	        		        tx.commit();
+	        		        log.info("" + e.getLatitude());
+	        		    } finally {
+	        		        //if (tx.isActive()) {
+	        		         //   tx.rollback();
+	        		        //}
+	        		    }
+		        	}
+		        }
+			}
     	}
+	    finally {
+	    	pm.close(); //do we want to close here?
+	    }
+    	
     	if (newkey != 0) { //send the new key back, just the first time
     		String firstkey = String.valueOf(newkey);
     		firstkey = firstkey.concat("~");
     		firstkey = firstkey.concat(content);
-    		content = firstkey;
+    		returnContent = firstkey;
     	}
-    	log.info("response going back: " + content);
-        resp.getWriter().print(content);
+    	log.info("response going back: " + returnContent);
+        resp.getWriter().print(returnContent);
 	}
 	
-	 @SuppressWarnings("unchecked")
+	@SuppressWarnings("unchecked")
 	public void testHowToQueryOnABoundingBox(PersistenceManager pm) {
 	        // Incoming data: latitude and longitude of south-west and north-east points (around Bordeaux for instance =) )
-	        double latS = 50.0;
-	        double latN = 60.0;
+	        double latS = 10.0;
+	        double latN = 20.0;
 	        
-	        double lonW = -115.0;
-	        double lonE = -125.0;
+	        double lonW = -15.0;
+	        double lonE = -12.0;
 
 	        // Transform this to a bounding box
 	        BoundingBox bb = new BoundingBox(latN, lonE, latS, lonW);

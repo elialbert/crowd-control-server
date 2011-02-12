@@ -25,6 +25,9 @@ public class Item implements LocationCapable {
 
     @Persistent
     private List<String> geocells;
+    
+    @Persistent
+    private int always = 1;
 
     public long getId() {
         return id;

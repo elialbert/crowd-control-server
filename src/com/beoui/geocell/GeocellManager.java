@@ -14,8 +14,6 @@ import javax.jdo.Query;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.Validate;
-import org.mortbay.log.Log;
-
 
 import com.beoui.geocell.LocationComparableTuple;
 import com.beoui.geocell.BoundingBox;
@@ -234,7 +232,8 @@ public class GeocellManager {
                 "Invalid max resolution parameter. Must be inferior to ", MAX_GEOCELL_RESOLUTION);
         // The current search geocell containing the lat,lon.
         String curContainingGeocell = GeocellUtils.compute(center, maxGeocellResolution);
-
+        log.info("curcontaininggeocell: " + curContainingGeocell);
+        logger.log(Level.INFO, "herenowwithlogger");
         // Set of already searched cells
         Set<String> searchedCells = new HashSet<String>();
 
@@ -270,6 +269,7 @@ public class GeocellManager {
 
             // Run query on the next set of geocells.
             String queryStart = baseQuery.getBaseQuery() == null || baseQuery.getBaseQuery().trim().length() == 0 ? " " : baseQuery.getBaseQuery() + " && ";
+            log.info("querystart: " + queryStart);
             Query query = pm.newQuery(entityClass, queryStart + "geocells.contains(geocellsP)");
 
             if(baseQuery.getDeclaredParameters() == null || baseQuery.getDeclaredParameters().trim().length() == 0) {
@@ -285,7 +285,7 @@ public class GeocellManager {
                 List<Object> parameters = new ArrayList<Object>(baseQuery.getParameters());
                 log.info("proximitysearch!3 " + String.valueOf(parameters.size()));
                 parameters.add(curGeocellsUnique);
-                log.info("proximitysearch!4");
+                log.info("proximitysearch!4" + String.valueOf(parameters.size()));
                 newResultEntities = (List<T>) query.executeWithArray(parameters.toArray());
                 log.info("proximitysearch!5" + String.valueOf(newResultEntities.size()));
             }
@@ -337,6 +337,7 @@ public class GeocellManager {
                     }
                 }
                 if(curGeocells.size() == 0) {
+                	log.info("curgeocells0");
                     break;  // Done with search, we've searched everywhere.
                 }
             } else if(curGeocells.size() == 1) {
