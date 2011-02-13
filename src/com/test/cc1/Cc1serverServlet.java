@@ -2,6 +2,7 @@ package com.test.cc1;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -28,7 +29,8 @@ public class Cc1serverServlet extends HttpServlet {
         String msgQtemp = ""; //this will be from the server to string "content" defined above
         List<String> msgQreturn = null; //this will be from the item in the datastore to the server
         long newkey = 0;
-        long radius = 0;
+        long radius = -1;
+        long radUse = 0;
         resp.setContentType("text/plain");
         
         Long inkey = Long.valueOf(req.getParameter("key"));
@@ -38,19 +40,27 @@ public class Cc1serverServlet extends HttpServlet {
     	Double lon = Double.valueOf(req.getParameter("longitude"));
     	Point p = new Point(lat, lon);
     	    	
+    	//get a timestamp
+    	//DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+    	Date createDate = new Date();
+    	
+    	
         List<String> cells = GeocellManager.generateGeoCell(p);
 
-    	if (req.getParameterMap().containsKey("content")) //check if the post has content
+    	if (req.getParameterMap().containsKey("content")) {//check if the post has content
             content = req.getParameter("content");
+    		log.info("content is: " + content);
+    	}
     	if (req.getParameterMap().containsKey("radius"))
-    		radius = Long.valueOf(req.getParameter("Radius"));
+    		radius = Long.valueOf(req.getParameter("radius"));
 
     	
     	Item e = new Item(); //this will either be created or retrieved
     	PersistenceManager pm = PMF.get().getPersistenceManager();
     	try { //the following try block works only on the current client's item
     		javax.jdo.Transaction tx = pm.currentTransaction();
-	        tx.begin();
+	        try {
+    		tx.begin();
     		if (inkey != 0) { //the user's Item reference exists, get it from the db
     			try {
     			e = pm.getObjectById(Item.class, inkey);
@@ -58,12 +68,15 @@ public class Cc1serverServlet extends HttpServlet {
     		}
     		else { //throws any time we haven't added said user yet:
     			e = new Item(username, content);
+    			if (radius == -1)
+    				e.setRadius((long)(50));
     		}
 			//if it already exists, update the location
 			e.setLatitude(lat);
 			e.setLongitude(lon);
 			e.setGeocells(cells);
-			if (radius != 0) {
+			e.setCreateDate(createDate); //update the date every time we fetch the entry
+			if (radius != -1) {
 				e.setRadius(radius);
 				log.info("setting radius to " + radius);
 			}
@@ -84,10 +97,15 @@ public class Cc1serverServlet extends HttpServlet {
 			else {
 				returnContent = "";
 			}
-			
+			radUse = e.getRadius();
 			//write to the client's item
 			pm.makePersistent(e);
 	        tx.commit();
+	        }
+	        catch (Exception err) {
+			    if (tx.isActive()){
+			        tx.rollback();}
+			 }
 			//if client is a new user, set the key
 			if (inkey == 0) {
 				newkey = e.getId(); //used to be key
@@ -103,7 +121,7 @@ public class Cc1serverServlet extends HttpServlet {
 		        
 		        List<Item> itemReturns = null;
 		        try {
-		            itemReturns = GeocellManager.proximityFetch(center, 100, 0, Item.class, baseQuery, pm);
+		            itemReturns = GeocellManager.proximityFetch(center, 100, radUse, Item.class, baseQuery, pm);
 		        } catch (Exception e2) {
 		        	log.warning(e2.getMessage());
 		        }
@@ -111,14 +129,21 @@ public class Cc1serverServlet extends HttpServlet {
 		        	int lenRet = itemReturns.size();
 		        	for (int i=0; i < lenRet; i++) {
 		        		//TODO! Radius checking (need the actual proximity of each item)
-        		        javax.jdo.Transaction tx2 = pm.currentTransaction();
-        		        tx2.begin();
-        		        Item tempReturn = itemReturns.get(i);
-        		        if (tempReturn.getId() != inkey) //we don't want to add the message to the one who sent it
-        		        	tempReturn.addtoMsgQ(username + ": " + content);
-            			pm.makePersistent(tempReturn);
-        		        tx2.commit();
-        		        log.info("RETURNCHECK! " + tempReturn.getUsername());
+		        		javax.jdo.Transaction tx2 = pm.currentTransaction();
+		        		try {
+			        		
+	        		        tx2.begin();
+	        		        Item tempReturn = itemReturns.get(i);
+	        		        if (tempReturn.getId() != inkey) //we don't want to add the message to the one who sent it
+	        		        	tempReturn.addtoMsgQ(username + ": " + content);
+	            			pm.makePersistent(tempReturn);
+	        		        tx2.commit();
+	        		        log.info("RETURNCHECK! " + tempReturn.getUsername());
+		        		}
+		        		catch (Exception err) {
+	    				    if (tx2.isActive()){
+	    				        tx2.rollback();}
+	    				 }
 		        	}
 		        }
 			}

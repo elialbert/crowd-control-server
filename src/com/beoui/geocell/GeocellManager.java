@@ -391,7 +391,7 @@ public class GeocellManager {
         for(Tuple<T, Double> entry : results.subList(0, Math.min(maxResults, results.size()))) {
             if(maxDistance == 0 || entry.getSecond() < maxDistance) {
                 //Item curNewTempRes = ((Item) entry.getFirst());
-            	log.info("RESULT CHECK: " + ((Item) entry.getFirst()).getLatitude());
+            	log.info("RESULT CHECK: " + entry.getSecond() + "maxdist: " + maxDistance);
             	//javax.jdo.Transaction tx = pm.currentTransaction();
 		        //tx.begin();
                 //curNewTempRes.setContent("whatwhat?");

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cronentries>
+  <cron>
+    <url>/cron/reset</url>
+    <description>reset the database</description>
+    <schedule>every 10 minutes</schedule>
+  </cron>
+</cronentries>

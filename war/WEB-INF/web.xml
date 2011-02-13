@@ -12,4 +12,14 @@ http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" version="2.5">
 		<servlet-name>Cc1server</servlet-name>
 		<url-pattern>/cc1server</url-pattern>
 	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>ResetServlet</servlet-name>
+		<servlet-class>com.test.cc1.ResetServlet</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>ResetServlet</servlet-name>
+		<url-pattern>/cron/reset</url-pattern>
+	</servlet-mapping>
+	
 </web-app>

@@ -1,5 +1,6 @@
 package com.test.cc1;
 
+import java.util.Date;
 import java.util.List;
 
 import javax.jdo.annotations.IdGeneratorStrategy;
@@ -89,6 +90,9 @@ public class Item implements LocationCapable {
 	
 	@Persistent
 	private Long radius;
+	
+	@Persistent
+	private Date createDate;
     
     public Item() {}
     
@@ -120,6 +124,14 @@ public class Item implements LocationCapable {
 
 	public Long getRadius() {
 		return radius;
+	}
+
+	public void setCreateDate(Date createDate) {
+		this.createDate = createDate;
+	}
+
+	public Date getCreateDate() {
+		return createDate;
 	}
 
 }
