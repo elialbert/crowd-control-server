@@ -8,15 +8,15 @@ import java.util.logging.Logger;
 
 import javax.jdo.JDOObjectNotFoundException;
 import javax.jdo.PersistenceManager;
-import javax.jdo.Query;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.beoui.geocell.BoundingBox;
 import com.beoui.geocell.GeocellManager;
 import com.beoui.geocell.GeocellQuery;
+import com.beoui.geocell.LocationComparableTuple;
 import com.beoui.geocell.Point;
+import com.beoui.geocell.Tuple;
 
 @SuppressWarnings("serial")
 public class Cc1serverServlet extends HttpServlet {
@@ -108,7 +108,7 @@ public class Cc1serverServlet extends HttpServlet {
 			 }
 			//if client is a new user, set the key
 			if (inkey == 0) {
-				newkey = e.getId(); //used to be key
+				newkey = e.getId(); //used to be key. should not be 0 here.
 				inkey = newkey;
 		    	log.info("new key is! " + newkey);
 			}
@@ -119,23 +119,27 @@ public class Cc1serverServlet extends HttpServlet {
 		        itemParams.add(1);
 		        GeocellQuery baseQuery = new GeocellQuery("always == alwaysParam", "int alwaysParam", itemParams);
 		        
-		        List<Item> itemReturns = null;
+		        List<LocationComparableTuple <Item>> itemReturns = null;
 		        try {
-		            itemReturns = GeocellManager.proximityFetch(center, 100, radUse, Item.class, baseQuery, pm);
+		            itemReturns = GeocellManager.proximityFetch(center, 50, 0, Item.class, baseQuery, pm);
 		        } catch (Exception e2) {
 		        	log.warning(e2.getMessage());
 		        }
 		        if (itemReturns != null) {
-		        	int lenRet = itemReturns.size();
-		        	for (int i=0; i < lenRet; i++) {
-		        		//TODO! Radius checking (need the actual proximity of each item)
+		        	//int lenRet = itemReturns.size();
+		        	//for (int i=0; i < lenRet; i++) {
+		        	//int i = 0;
+		        	for (Tuple<Item, Double> entry : itemReturns) {
 		        		javax.jdo.Transaction tx2 = pm.currentTransaction();
 		        		try {
-			        		
 	        		        tx2.begin();
-	        		        Item tempReturn = itemReturns.get(i);
-	        		        if (tempReturn.getId() != inkey) //we don't want to add the message to the one who sent it
-	        		        	tempReturn.addtoMsgQ(username + ": " + content);
+	        		        Item tempReturn = entry.getFirst();
+	        		        if (tempReturn.getId() != inkey) {//we don't want to add the message to the one who sent it
+	        		        	if ((entry.getSecond() <= tempReturn.getRadius()) || (tempReturn.getRadius() == 0)) { //this only adds the message to queues within their own set hearing.
+	        		        		tempReturn.addtoMsgQ(username + ": " + content);
+	    	        		        log.info("RETURNsuccess! " + tempReturn.getUsername());
+	        		        	}
+	        		        }
 	            			pm.makePersistent(tempReturn);
 	        		        tx2.commit();
 	        		        log.info("RETURNCHECK! " + tempReturn.getUsername());
@@ -154,41 +158,11 @@ public class Cc1serverServlet extends HttpServlet {
     	
     	if (newkey != 0) { //send the new key back, just the first time
     		String firstkey = String.valueOf(newkey);
-    		firstkey = firstkey.concat("~");
+    		firstkey = firstkey.concat("<<<");
     		firstkey = firstkey.concat(content);
     		returnContent = firstkey;
     	}
     	log.info("response going back: " + returnContent);
         resp.getWriter().print(returnContent);
 	}
-	
-	@SuppressWarnings("unchecked")
-	public void testHowToQueryOnABoundingBox(PersistenceManager pm) {
-	        // Incoming data: latitude and longitude of south-west and north-east points (around Bordeaux for instance =) )
-	        double latS = 10.0;
-	        double latN = 20.0;
-	        
-	        double lonW = -15.0;
-	        double lonE = -12.0;
-
-	        // Transform this to a bounding box
-	        BoundingBox bb = new BoundingBox(latN, lonE, latS, lonW);
-
-	        // Calculate the geocells list to be used in the queries (optimize list of cells that complete the given bounding box)
-	        List<String> cells = GeocellManager.bestBboxSearchCells(bb, null);
-
-	        String queryString = "select from " + Item.class.getName() + " where geocellsParameter.contains(geocells)";
-            Query query = pm.newQuery(queryString);
-	        query.declareParameters("String geocellsParameter");
-	        List<Item> objects = (List<Item>) query.execute(cells);
-	        
-	        for (Item i : objects) {
-	        	log.info("obj!: " + i.getLatitude());
-	        }
-	        
-	        // Show in the log what cells shoud be used in the query
-	        log.info("Geocells to use in query for PointSW("+latS+","+lonW+") ; PointNE("+latN+","+lonE+") are: "+cells);
-	    }
-
-
 }

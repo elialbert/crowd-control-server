@@ -24,7 +24,6 @@ import com.beoui.geocell.LocationCapable;
 import com.beoui.geocell.Point;
 import com.beoui.geocell.Tuple;
 import com.test.cc1.Cc1serverServlet;
-import com.test.cc1.Item;
 
 /**
 #
@@ -226,8 +225,9 @@ public class GeocellManager {
      * @throws all exceptions that can be thrown when running queries.
      */
     @SuppressWarnings("unchecked")
-    public static final <T extends LocationCapable> List<T> proximityFetch(Point center, int maxResults, double maxDistance, Class<T> entityClass, GeocellQuery baseQuery, PersistenceManager pm, int maxGeocellResolution) {
-        List<LocationComparableTuple<T>> results = new ArrayList<LocationComparableTuple<T>>();
+    public static final <T extends LocationCapable> List<LocationComparableTuple<T>> proximityFetch(Point center, int maxResults, double maxDistance, Class<T> entityClass, GeocellQuery baseQuery, PersistenceManager pm, int maxGeocellResolution) {
+        //olddef:     public static final <T extends LocationCapable> List<T> proximityFetch(Point center, int maxResults, double maxDistance, Class<T> entityClass, GeocellQuery baseQuery, PersistenceManager pm, int maxGeocellResolution) {
+    	List<LocationComparableTuple<T>> results = new ArrayList<LocationComparableTuple<T>>();
 
         Validate.isTrue(maxGeocellResolution < MAX_GEOCELL_RESOLUTION + 1,
                 "Invalid max resolution parameter. Must be inferior to ", MAX_GEOCELL_RESOLUTION);
@@ -387,21 +387,23 @@ public class GeocellManager {
             }
             logger.log(Level.FINE, "next result at least "+closestPossibleNextResultDist+" away, current farthest is "+currentFarthestReturnableResultDist+" dist");
         }
-        List<T> result = new ArrayList<T>();
+        //List<T> result = new ArrayList<T>();
+        //List<LocationComparableTuple<T>> result = new ArrayList<LocationComparableTuple<T>>();
         for(Tuple<T, Double> entry : results.subList(0, Math.min(maxResults, results.size()))) {
-            if(maxDistance == 0 || entry.getSecond() < maxDistance) {
+            log.info("rescheck1: " + entry.getSecond());
+        	if(maxDistance == 0 || (entry.getSecond() < maxDistance)) {
                 //Item curNewTempRes = ((Item) entry.getFirst());
             	log.info("RESULT CHECK: " + entry.getSecond() + "maxdist: " + maxDistance);
-            	//javax.jdo.Transaction tx = pm.currentTransaction();
-		        //tx.begin();
-                //curNewTempRes.setContent("whatwhat?");
-                //pm.makePersistent(curNewTempRes);
-		        //tx.commit();
-            	result.add(entry.getFirst());
+            	//result.add(entry.getFirst());
+            	
             }
+        	else {
+        		log.info("remres: " + entry.getSecond());
+        		results.remove(entry); //this one is out of range!
+        	}
         }
-        logger.log(Level.INFO, "Proximity query looked in "+ searchedCells.size() +" geocells and found "+result.size()+" results.");
-        return result;
+        logger.log(Level.INFO, "Proximity query looked in "+ searchedCells.size() +" geocells and found "+results.size()+" results.");
+        return results;
     }
 
     /**
@@ -410,7 +412,7 @@ public class GeocellManager {
      * Use MAX_GEOCELL_RESOLUTION as a starting resolution.
      *
      */
-    public static final <T extends LocationCapable> List<T> proximityFetch(Point center, int maxResults, double maxDistance, Class<T> entityClass, GeocellQuery baseQuery, PersistenceManager pm) {
+    public static final <T extends LocationCapable> List<LocationComparableTuple<T>> proximityFetch(Point center, int maxResults, double maxDistance, Class<T> entityClass, GeocellQuery baseQuery, PersistenceManager pm) {
         return proximityFetch(center, maxResults, maxDistance, entityClass, baseQuery, pm, MAX_GEOCELL_RESOLUTION);
     }
 
